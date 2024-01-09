@@ -14,7 +14,7 @@ wget https://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/walker2d_m
 wget https://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/walker2d_random-v2.hdf5
 ```
 Offline demonstration from domain name 'walker' and task name 'walk' of [DeepMind Control Suite](https://github.com/google-deepmind/dm_control)
-- [link](https://drive.google.com/drive/folders/15HpW6nlJexJP5A4ygGk-1plqt9XdcWGI?usp=sharing) from [V-D4RL](https://github.com/conglu1997/v-d4rl)
+- access the [link](https://drive.google.com/drive/folders/15HpW6nlJexJP5A4ygGk-1plqt9XdcWGI?usp=sharing) from [V-D4RL](https://github.com/conglu1997/v-d4rl)
 - download the folder `main/walker_walk/medium/64px`
 - the overall file structure becomes:
 ```
