@@ -49,7 +49,7 @@ docker run -it --shm-size=8G \
     /bin/bash
 ```
 
-#### library install
+#### additional library
 ```bash
 pip install h5py
 ```
