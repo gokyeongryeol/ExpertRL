@@ -55,7 +55,7 @@ pip install h5py
 ```
 
 #### simulated environment
-We used the image wrapper in [dmc2gym](https://github.com/denisyarats/dmc2gym) with a few modifications using local install, which is necessary for the updated mujoco version.
+Mujoco: We followed the instruction in [mujoco-py](https://github.com/openai/mujoco-py).
 ```bash
 wget https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz
 tar -zxvf mujoco210-linux-x86_64.tar.gz
@@ -70,6 +70,8 @@ pip install gym[mujoco]
 pip install 'cython<3'
 apt install libosmesa6-dev libgl1-mesa-glx libglfw3
 ln -s /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/x86_64-linux-gnu/libGL.so
-
+```
+Deepmind Control Suite: We used the image wrapper in [dmc2gym](https://github.com/denisyarats/dmc2gym) with a few modifications using local install, which is necessary for the updated mujoco version.
+```bash
 cd dmc2gym/ && pip install -e .
 ```
