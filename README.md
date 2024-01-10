@@ -1,8 +1,8 @@
 # Expert-guided Data-efficient RL
 
-[Case 1](./SubOptimal/SCRIPTS.md): sub-optimal RL agent as expert knowledge
+[Case 1](./SubOptimal/README.md): sub-optimal RL agent as expert knowledge
 
-[Case 2](./LowDynamics/SCRIPTS.md): low-dimensional dynamics as expert knowledge
+[Case 2](./LowDynamics/README.md): low-dimensional dynamics as expert knowledge
 
 ### Dataset
 
