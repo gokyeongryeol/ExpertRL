@@ -12,10 +12,9 @@ mkdir demon && cd demon/
 wget https://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/walker2d_expert-v2.hdf5
 wget https://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/walker2d_medium-v2.hdf5
 wget https://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/walker2d_random-v2.hdf5
-cd ..
 ```
 Offline demonstration from domain name 'walker' and task name 'walk' of [DeepMind Control Suite](https://github.com/google-deepmind/dm_control)
-- [link](https://drive.google.com/drive/folders/15HpW6nlJexJP5A4ygGk-1plqt9XdcWGI?usp=sharing) from [V-D4RL](https://github.com/conglu1997/v-d4rl)
+- access the [link](https://drive.google.com/drive/folders/15HpW6nlJexJP5A4ygGk-1plqt9XdcWGI?usp=sharing) from [V-D4RL](https://github.com/conglu1997/v-d4rl)
 - download the folder `main/walker_walk/medium/64px`
 - the overall file structure becomes:
 ```
@@ -50,11 +49,13 @@ docker run -it --shm-size=8G \
     /bin/bash
 ```
 
-#### library install
+#### additional library
+```bash
 pip install h5py
+```
 
 #### simulated environment
-We used the image wrapper in [dmc2gym](https://github.com/denisyarats/dmc2gym) with a few modifications using local install, which is necessary for the updated mujoco version.
+Mujoco: We followed the instruction in [mujoco-py](https://github.com/openai/mujoco-py).
 ```bash
 wget https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz
 tar -zxvf mujoco210-linux-x86_64.tar.gz
@@ -69,6 +70,8 @@ pip install gym[mujoco]
 pip install 'cython<3'
 apt install libosmesa6-dev libgl1-mesa-glx libglfw3
 ln -s /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/x86_64-linux-gnu/libGL.so
-
-cd dmc2gym/ && pip install -e . && cd ../
+```
+Deepmind Control Suite: We used the image wrapper in [dmc2gym](https://github.com/denisyarats/dmc2gym) with a few modifications using local install, which is necessary for the updated mujoco version.
+```bash
+cd dmc2gym/ && pip install -e .
 ```
