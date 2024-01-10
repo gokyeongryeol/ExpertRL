@@ -64,7 +64,7 @@ def evaluate_agent(agent, args):
         from_pixels=True,
         height=64,
         width=64,
-        frame_skip=4,
+        frame_skip=args.n_repeat,
     )
 
     agent.eval()

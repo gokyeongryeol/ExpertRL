@@ -37,20 +37,20 @@ def train_offline_agent(agent, memory, args):
 
                 torch.save(
                     agent.slvm.state_dict(),
-                    f"ckpt/{args.env}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
+                    f"ckpt/{args.env}_{args.alg}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
                 )
                 torch.save(
                     metric_,
-                    f"metric/{args.env}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
+                    f"metric/{args.env}_{args.alg}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
                 )
     else:
         agent.slvm.load_state_dict(
-            torch.load(f"ckpt/{args.env}_slvm_{'orig' if args.is_e2e else 'plus'}.pt")
+            torch.load(f"ckpt/{args.env}_{args.alg}_slvm_{'orig' if args.is_e2e else 'plus'}.pt")
         )
 
     if not args.is_e2e:
         for param in agent.slvm.gen_z1_t.parameters():
-                param.requires_grad_(True)
+            param.requires_grad_(True)
 
         agent.s_optim = optim.Adam(agent.slvm.parameters(), lr=1e-4)
 
@@ -105,7 +105,7 @@ def train_online_agent(act_dim, act_limit, agent, memory, args):
         from_pixels=True,
         height=64,
         width=64,
-        frame_skip=4,
+        frame_skip=args.n_repeat,
     )
 
     n_steps = 0
@@ -167,17 +167,17 @@ def train_online_agent(act_dim, act_limit, agent, memory, args):
 
                             torch.save(
                                 agent.slvm.state_dict(),
-                                f"ckpt/{args.env}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
+                                f"ckpt/{args.env}_{args.alg}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
                             )
                             torch.save(
                                 metric_,
-                                f"metric/{args.env}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
+                                f"metric/{args.env}_{args.alg}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
                             )
 
                 else:
                     agent.slvm.load_state_dict(
                         torch.load(
-                            f"ckpt/{args.env}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
+                            f"ckpt/{args.env}_{args.alg}_slvm_{'orig' if args.is_e2e else 'plus'}.pt",
                         ),
                     )
 
