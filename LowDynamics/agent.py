@@ -65,13 +65,12 @@ def make_offline_agent(obs_dim, act_dim, act_limit, args):
         act_dim,
         act_limit,
         args.seq_len,
-        q_layer=4,
+        p_layer=4,
         min_log=-6,
         max_log=0,
         tunable=False,
         alpha=0.0,
         p_wd=1e-4,
-        
     )
     agent = agent.cuda()
 
@@ -99,7 +98,6 @@ def make_online_agent(obs_dim, act_dim, act_limit, args):
         act_dim,
         act_limit,
         args.seq_len,
-        q_layer=2,
         min_log=-20,
         max_log=2,
         tunable=True,

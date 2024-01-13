@@ -55,7 +55,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--n_period",
-        default=int(1e2),
+        default=int(1e3),
         type=int,
         help="number of iterations or steps between logging",
     )

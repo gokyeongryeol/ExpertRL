@@ -54,6 +54,9 @@ def train_offline_agent(agent, memory, args):
 
         agent.s_optim = optim.Adam(agent.slvm.parameters(), lr=1e-4)
 
+    cum_rew = evaluate_agent(agent, args)
+    metric["rewards"]["eval"].append(cum_rew)
+
     for n_iters in tqdm(range(args.n_offrl)):
         agent.train()
 
