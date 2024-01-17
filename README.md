@@ -30,10 +30,10 @@ ExpertRL
 │   └───walker2d_random-v2.hdf5
 └───dmc2gym
 └───LowDynamics
-│   └───SCRIPTS.md
+│   └───README.md
 │   │   ...
 └───SubOptimal
-│   └───SCRIPTS.md
+│   └───README.md
 │   │   ...
 └───README.md
 ```
