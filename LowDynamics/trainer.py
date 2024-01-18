@@ -11,7 +11,11 @@ from utils import calc_entropy, evaluate_agent, flatten, reset_que
 
 
 def train_offline_agent(agent, memory, args):
-    metric_ = {"KL": [], "NLL": []}
+    metric_ = {"losses":
+               {"KL": [], "NLL": []},
+              "rewards": {
+                  "eval": []}
+              }
 
     metric = {
         "losses": {
@@ -28,12 +32,17 @@ def train_offline_agent(agent, memory, args):
 
     if args.from_scratch:
         for n_iters in tqdm(range(args.n_pretrain)):
+            agent.train()
+
             m_batch = memory.sample(args.m_batch_size)
             loss_t = agent.update_param(m_batch, only_model=True)
 
             if (n_iters + 1) % args.n_period == 0:
-                metric_["KL"].append(loss_t["s_loss"]["KL"])
-                metric_["NLL"].append(loss_t["s_loss"]["NLL"])
+                metric_["losses"]["KL"].append(loss_t["s_loss"]["KL"])
+                metric_["losses"]["NLL"].append(loss_t["s_loss"]["NLL"])
+
+                cum_rew = evaluate_agent(agent, args)
+                metric_["rewards"]["eval"].append(cum_rew)
 
                 torch.save(
                     agent.slvm.state_dict(),
@@ -141,7 +150,7 @@ def train_online_agent(act_dim, act_limit, agent, memory, args):
                 action = action.view(-1).to("cpu").numpy()
 
             next_obs, rew, done = env.step(action)[:3]
-            terminate = done or ((t + 1) == args.max_steps) or rew < 1e-6
+            terminate = done or (t == args.max_steps // args.n_repeat) or rew < 1e-6
 
             aux_obs_que.append(next_obs)
             action_que.append(action)

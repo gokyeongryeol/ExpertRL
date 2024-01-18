@@ -78,7 +78,7 @@ def make_offline_agent(obs_dim, act_dim, act_limit, args):
 
     for file in os.listdir("../64px"):
         data = np.load(f"../64px/{file}")
-        for t in range(0,500-args.seq_len-1, args.n_jump):
+        for t in range(0, 501-args.seq_len, args.n_jump):
             aux_obs = np.transpose(data['image'][t:t+args.seq_len+1], (0,3,1,2))
             action = data['action'][t+1:t+args.seq_len+1]
             rew = data['reward'][t+1:t+args.seq_len+1]

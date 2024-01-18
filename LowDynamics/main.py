@@ -33,7 +33,7 @@ def get_args_parser(add_help=True):
         "--env", default="Walker2d-v2", type=str, help="name of the environment",
     )
     parser.add_argument("--n_repeat", default=2, type=int, help="number of action repeats")
-    parser.add_argument("--n_jump", default=5, type=int, help="time interval between the sequnces from offline demonstraions")
+    parser.add_argument("--n_jump", default=4, type=int, help="time interval between the sequnces from offline demonstraions")
     parser.add_argument("--seed", default=3061, type=int, help="random seed")
 
     parser.add_argument("--use_offline", action="store_true")
@@ -85,7 +85,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--ac_batch_size",
-        default=512,
+        default=256,
         type=int,
         help="batch size for actor-critic update",
     )

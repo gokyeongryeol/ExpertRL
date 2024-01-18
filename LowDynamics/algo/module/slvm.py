@@ -32,6 +32,8 @@ class SLVM(nn.Module):
         self.inf_z1_t = MLP(z1_dim+act_dim+fea_dim, hid_dim, z1_dim*2, num_layer, activation=activation)
         self.gen_z2_t = MLP(z2_dim+act_dim+fea_dim+z1_dim, hid_dim, z2_dim*2, num_layer, activation=activation)
 
+        self.gen_rew = MLP((z1_dim+z2_dim)*2+act_dim, hid_dim, 1*2, num_layer, activation=activation)
+
     def calc_feature(self, aux_obs_seq):
         aux_feature_seq = self.encoder(aux_obs_seq)
         return aux_feature_seq
@@ -48,7 +50,7 @@ class SLVM(nn.Module):
             pred = dist.mean
         return dist, pred
 
-    def calc_latent(self, aux_feature_seq, action_seq):
+    def calc_latent(self, aux_feature_seq, action_seq, return_sigma=False):
         KL_lst = []
         z_t_list = []
         feature = aux_feature_seq[:,0]
@@ -70,10 +72,10 @@ class SLVM(nn.Module):
             next_feature, action = aux_feature_seq[:,t], action_seq[:,t-1]
 
             if self.use_dynamics:
-                mu = self.gen_z1_t(z1_t, action)
-                sigma = math.sqrt(0.1) * torch.ones(mu.size()).to(mu.device)
+                mu, std = self.gen_z1_t(z1_t, action, compute_std=True)
+                base_std = math.sqrt(0.3) * torch.ones(std.size()).to(std.device)
 
-                prior = Normal(mu, sigma)
+                prior = Normal(mu, base_std + std)
             else:
                 prior_param = self.gen_z1_t(torch.cat([z1_t, action], dim=-1))
                 prior, _ = self.calc_dist(prior_param)
@@ -90,9 +92,22 @@ class SLVM(nn.Module):
 
         KL = torch.stack(KL_lst).mean(dim=0)
         aux_z_seq = torch.stack(z_t_list, dim=1)
+
+        if return_sigma:
+            zaz_seq = torch.cat([aux_z_seq[:,:-1], action_seq, aux_z_seq[:,1:]], dim=-1)
+            rew_param = self.gen_rew(zaz_seq)
+            rew_seq_dist, _ = self.calc_dist(rew_param)
+
+            return KL, aux_z_seq, rew_seq_dist.stddev[:,-1]
+
         return KL, aux_z_seq
 
-    def reconstruct(self, aux_obs_seq, aux_z_seq):
+    def reconstruct(self, aux_obs_seq, aux_z_seq, action_seq, rew_seq, done_seq):
         aux_obs_seq_dist, aux_obs_seq_hat = self.decoder(aux_z_seq)
         NLL = - aux_obs_seq_dist.log_prob(aux_obs_seq).mean(dim=(1,2,3,4))
+
+        zaz_seq = torch.cat([aux_z_seq[:,:-1], action_seq, aux_z_seq[:,1:]], dim=-1)
+        rew_param = self.gen_rew(zaz_seq)
+        rew_seq_dist, _ = self.calc_dist(rew_param)
+        NLL = NLL - ((1-done_seq) * rew_seq_dist.log_prob(rew_seq)).mean(dim=-1)
         return NLL, aux_obs_seq_hat

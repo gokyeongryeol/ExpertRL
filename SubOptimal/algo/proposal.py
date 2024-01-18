@@ -1,8 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from .base import SAC, soft_update
-from utils import calc_entropy
+from .base import SAC
 
 
 class TD_Ratio(SAC):

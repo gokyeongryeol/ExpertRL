@@ -92,7 +92,7 @@ def evaluate_agent(agent, args):
             action = action.view(-1).to("cpu").numpy()
 
         next_obs, rew, done = env.step(action)[:3]
-        terminate = done or ((t + 1) == args.max_steps) or rew < 1e-6
+        terminate = done or (t == args.max_steps // args.n_repeat) or rew < 1e-6
 
         cum_rew += rew
 

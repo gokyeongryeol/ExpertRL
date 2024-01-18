@@ -73,10 +73,10 @@ class SLAC(nn.Module):
             self.alpha_optim = optim.Adam([self.log_alpha], lr=p_lr)
             self.target_entropy = (-1) * act_dim
 
-    def slvm_update(self, aux_obs_seq, action_seq):
+    def slvm_update(self, aux_obs_seq, action_seq, rew_seq, done_seq):
         aux_feature_seq = self.slvm.calc_feature(aux_obs_seq)
         KL, aux_z_seq = self.slvm.calc_latent(aux_feature_seq, action_seq)
-        NLL, _ = self.slvm.reconstruct(aux_obs_seq, aux_z_seq)
+        NLL, _ = self.slvm.reconstruct(aux_obs_seq, aux_z_seq, action_seq, rew_seq, done_seq)
         KL, NLL = KL.mean(), NLL.mean()
 
         self.s_optim.zero_grad()
@@ -153,15 +153,15 @@ class SLAC(nn.Module):
         return alpha_loss.item()
 
     def update_param(self, m_batch, ac_batch=None, only_model=False):
-        aux_obs_seq, action_seq, _, _ = m_batch
-        KL, NLL = self.slvm_update(aux_obs_seq, action_seq)
+        aux_obs_seq, action_seq, rew_seq, done_seq = m_batch
+        KL, NLL = self.slvm_update(aux_obs_seq, action_seq, rew_seq, done_seq)
 
         c_loss, a_loss, alpha_loss = 0.0, 0.0, 0.0
         if not only_model:
             aux_obs_seq, action_seq, rew_seq, done_seq = ac_batch
             with torch.no_grad():
                 aux_feature_seq = self.slvm.calc_feature(aux_obs_seq)
-                _, aux_z_seq = self.slvm.calc_latent(aux_feature_seq, action_seq)
+                _, aux_z_seq, rew_penalty = self.slvm.calc_latent(aux_feature_seq, action_seq, return_sigma=True)
 
             pre_feature, post_feature = aux_feature_seq[:,:-1], aux_feature_seq[:,1:]
             pre_action, post_action = action_seq[:,:-1], action_seq[:,1:]
@@ -169,7 +169,7 @@ class SLAC(nn.Module):
             next_fa_seq = torch.cat([flatten(post_feature), flatten(post_action)], dim=-1)
 
             z, action, next_z = aux_z_seq[:,-2], action_seq[:,-1], aux_z_seq[:,-1] 
-            rew, done = rew_seq[:,-1], done_seq[:,-1]
+            rew, done = rew_seq[:,-1] - 5.0 * rew_penalty, done_seq[:,-1]
 
             c_loss = self.critic_update(z, action, next_fa_seq, next_z, rew, done)
             a_loss = self.actor_update(fa_seq, z, action)
