@@ -23,6 +23,7 @@ def reset_que(env, seq_len):
     action_que = deque(maxlen=seq_len)
     rew_que = deque(maxlen=seq_len)
     done_que = deque(maxlen=seq_len)
+    time_que = deque(maxlen=seq_len)
     
     obs_shape = env.observation_space.shape
     action_shape = env.action_space.shape
@@ -32,7 +33,7 @@ def reset_que(env, seq_len):
         aux_obs_que.append(np.zeros(obs_shape))
         action_que.append(np.zeros(action_shape))
         
-    return aux_obs_que, action_que, rew_que, done_que
+    return aux_obs_que, action_que, rew_que, done_que, time_que
 
 
 def flatten(seq_tensor):
@@ -70,33 +71,32 @@ def evaluate_agent(agent, args):
     agent.eval()
 
     cum_rew = 0.0
-    aux_obs_que, action_que, _, _ = reset_que(env, args.seq_len)
+    aux_obs_que, action_que, *_ = reset_que(env, args.seq_len)
     obs = env.reset()
     aux_obs_que.append(obs)
     for t in count():
-        with torch.no_grad():
-            aux_obs_seq = np.array(aux_obs_que)[1:]
-            action_seq = np.array(action_que)[1:]
-            converted_obs = torch.tensor(aux_obs_seq, dtype=torch.float32).div_(255.0).cuda()
-            converted_action = torch.tensor(action_seq, dtype=torch.float32).cuda()
-            
-            S, C, H, W = converted_obs.size()
-            _, A = converted_action.size()
-            
-            aux_feature_seq = agent.slvm.encoder(converted_obs.view(1, S, C, H, W))
-            action_seq = converted_action.view(1, S-1, A)
-            
-            fa_seq = torch.cat([flatten(aux_feature_seq), flatten(action_seq)], dim=-1)
+        aux_obs_seq = np.array(aux_obs_que)[1:]
+        action_seq = np.array(action_que)[1:]
+        converted_obs = torch.tensor(aux_obs_seq, dtype=torch.float32).div_(255.0).cuda()
+        converted_action = torch.tensor(action_seq, dtype=torch.float32).cuda()
 
-            action = agent.actor(fa_seq)[1]
-            action = action.view(-1).to("cpu").numpy()
+        S, C, H, W = converted_obs.size()
+        _, A = converted_action.size()
+
+        with torch.no_grad():
+            aux_feature_seq = agent.slvm.calc_feature(converted_obs.view(1, S, C, H, W))
+            action_seq = converted_action.view(1, S-1, A)
+            _, aux_z_seq = agent.slvm.calc_latent(aux_feature_seq, action_seq)
+
+            action = agent.actor(aux_z_seq[:,-1])[1]
+
+        action = action.view(-1).to("cpu").numpy()
 
         next_obs, rew, done = env.step(action)[:3]
-        terminate = done or (t == args.max_steps // args.n_repeat) or rew < 1e-6
 
         cum_rew += rew
 
-        if terminate:
+        if done or (t+1 == args.max_steps // args.n_repeat) or rew < 1e-6:
             break
         else:
             aux_obs_que.append(next_obs)

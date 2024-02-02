@@ -11,7 +11,7 @@ EPS = 1e-6
 
 
 class SLVM(nn.Module):
-    def __init__(self, fea_dim, hid_dim, z1_dim, z2_dim, act_dim, num_layer=2, dynamics=None):
+    def __init__(self, fea_dim, hid_dim, z1_dim, z2_dim, act_dim, num_layer=2, dynamics=None, estimate_rew=False):
         super().__init__() 
 
         activation = nn.LeakyReLU(0.2)
@@ -32,7 +32,9 @@ class SLVM(nn.Module):
         self.inf_z1_t = MLP(z1_dim+act_dim+fea_dim, hid_dim, z1_dim*2, num_layer, activation=activation)
         self.gen_z2_t = MLP(z2_dim+act_dim+fea_dim+z1_dim, hid_dim, z2_dim*2, num_layer, activation=activation)
 
-        self.gen_rew = MLP((z1_dim+z2_dim)*2+act_dim, hid_dim, 1*2, num_layer, activation=activation)
+        self.estimate_rew = estimate_rew
+        if self.estimate_rew:
+            self.gen_rew = MLP((z1_dim+z2_dim)*2+act_dim, hid_dim, 1*2, num_layer, activation=activation)
 
     def calc_feature(self, aux_obs_seq):
         aux_feature_seq = self.encoder(aux_obs_seq)
@@ -72,10 +74,11 @@ class SLVM(nn.Module):
             next_feature, action = aux_feature_seq[:,t], action_seq[:,t-1]
 
             if self.use_dynamics:
-                mu, std = self.gen_z1_t(z1_t, action, compute_std=True)
-                base_std = math.sqrt(0.3) * torch.ones(std.size()).to(std.device)
+                # mu, std = self.gen_z1_t(z1_t, action, compute_std=True)
+                # base_std = math.sqrt(0.3) * torch.ones(std.size()).to(std.device)
 
-                prior = Normal(mu, base_std + std)
+                # prior = Normal(mu, base_std + std)
+                prior = self.gen_z1_t(z1_t, action)
             else:
                 prior_param = self.gen_z1_t(torch.cat([z1_t, action], dim=-1))
                 prior, _ = self.calc_dist(prior_param)
@@ -93,7 +96,7 @@ class SLVM(nn.Module):
         KL = torch.stack(KL_lst).mean(dim=0)
         aux_z_seq = torch.stack(z_t_list, dim=1)
 
-        if return_sigma:
+        if self.estimate_rew and return_sigma:
             zaz_seq = torch.cat([aux_z_seq[:,:-1], action_seq, aux_z_seq[:,1:]], dim=-1)
             rew_param = self.gen_rew(zaz_seq)
             rew_seq_dist, _ = self.calc_dist(rew_param)
@@ -106,8 +109,9 @@ class SLVM(nn.Module):
         aux_obs_seq_dist, aux_obs_seq_hat = self.decoder(aux_z_seq)
         NLL = - aux_obs_seq_dist.log_prob(aux_obs_seq).mean(dim=(1,2,3,4))
 
-        zaz_seq = torch.cat([aux_z_seq[:,:-1], action_seq, aux_z_seq[:,1:]], dim=-1)
-        rew_param = self.gen_rew(zaz_seq)
-        rew_seq_dist, _ = self.calc_dist(rew_param)
-        NLL = NLL - ((1-done_seq) * rew_seq_dist.log_prob(rew_seq)).mean(dim=-1)
+        if self.estimate_rew:
+            zaz_seq = torch.cat([aux_z_seq[:,:-1], action_seq, aux_z_seq[:,1:]], dim=-1)
+            rew_param = self.gen_rew(zaz_seq)
+            rew_seq_dist, _ = self.calc_dist(rew_param)
+            NLL = NLL - ((1-done_seq) * rew_seq_dist.log_prob(rew_seq)).mean(dim=-1)
         return NLL, aux_obs_seq_hat

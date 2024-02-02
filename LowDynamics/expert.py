@@ -87,7 +87,8 @@ for epoch in range(int(1e+2)):
 
         batch = memory.sample(128)
         obs, action, next_obs = batch
-        loss = F.mse_loss(dynamics(obs, action), next_obs)
+        next_obs_dist = dynamics(obs, action)
+        loss = - next_obs_dist.log_prob(next_obs).mean()
 
         optimizer.zero_grad()
         loss.backward()

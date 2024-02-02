@@ -36,18 +36,17 @@ class MLP(nn.Module):
 
 
 class Actor(nn.Module):
-    def __init__(self, fea_dim, hid_dim, act_dim, seq_len,
-                 num_layer, act_limit, min_log, max_log):
+    def __init__(self, z_dim, hid_dim, act_dim, num_layer,
+                 act_limit, min_log, max_log):
         super().__init__()
 
-        self.actor = MLP(fea_dim*seq_len + act_dim*(seq_len-1),
-                         hid_dim, act_dim * 2, num_layer)
+        self.actor = MLP(z_dim, hid_dim, act_dim * 2, num_layer)
 
         self.act_limit = act_limit
         self.min_log, self.max_log = min_log, max_log
 
-    def forward(self, fa_seq):
-        param = self.actor(fa_seq)
+    def forward(self, z):
+        param = self.actor(z)
         mu, omega = torch.chunk(param, chunks=2, dim=-1)
         log_sig = torch.clamp(omega, self.min_log, self.max_log)
         sigma = torch.exp(log_sig) + 1e-6

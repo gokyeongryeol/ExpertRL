@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import torch.optim as optim
 
 import dmc2gym
 import gym
@@ -57,14 +56,17 @@ def train_offline_agent(agent, memory, args):
             torch.load(f"ckpt/{args.env}_{args.alg}_slvm_{'orig' if args.is_e2e else 'plus'}.pt")
         )
 
-    if not args.is_e2e:
-        for param in agent.slvm.gen_z1_t.parameters():
-            param.requires_grad_(True)
+    if args.resume:
+        agent.load_state_dict(
+            torch.load(f"ckpt/{args.env}_{args.alg}_{'orig' if args.is_e2e else 'plus'}_{args.seed}.pt")
+        )
 
-        agent.s_optim = optim.Adam(agent.slvm.parameters(), lr=1e-4)
-
-    cum_rew = evaluate_agent(agent, args)
-    metric["rewards"]["eval"].append(cum_rew)
+        metric = torch.load(
+            f"metric/{args.env}_{args.alg}_{'orig' if args.is_e2e else 'plus'}_{args.seed}.pt",
+        )
+    else:
+        cum_rew = evaluate_agent(agent, args)
+        metric["rewards"]["eval"].append(cum_rew)
 
     for n_iters in tqdm(range(args.n_offrl)):
         agent.train()
@@ -84,6 +86,7 @@ def train_offline_agent(agent, memory, args):
             metric["rewards"]["eval"].append(cum_rew)
 
             torch.save(agent.state_dict(), f"ckpt/{args.env}_{args.alg}_{'orig' if args.is_e2e else 'plus'}_{args.seed}.pt")
+
             torch.save(metric, f"metric/{args.env}_{args.alg}_{'orig' if args.is_e2e else 'plus'}_{args.seed}.pt")
             print("Offline training: {} \t Reward: {}".format(n_iters, cum_rew))
 
@@ -122,7 +125,7 @@ def train_online_agent(act_dim, act_limit, agent, memory, args):
 
     n_steps = 0
     for episode in range(args.n_episodes):
-        aux_obs_que, action_que, rew_que, done_que = reset_que(env, args.seq_len)
+        aux_obs_que, action_que, rew_que, done_que, time_que = reset_que(env, args.seq_len)
         obs = env.reset()
 
         aux_obs_que.append(obs)
@@ -142,28 +145,30 @@ def train_online_agent(act_dim, act_limit, agent, memory, args):
                 _, A = converted_action.size()
 
                 with torch.no_grad():
-                    aux_feature_seq = agent.slvm.encoder(converted_obs.view(1, S, C, H, W))
+                    aux_feature_seq = agent.slvm.calc_feature(converted_obs.view(1, S, C, H, W))
                     action_seq = converted_action.view(1, S-1, A)
-                    fa_seq = torch.cat([flatten(aux_feature_seq), flatten(action_seq)], dim=-1)
-                    action = agent.actor(fa_seq)[1]
+                    _, aux_z_seq = agent.slvm.calc_latent(aux_feature_seq, action_seq)
+
+                    action = agent.actor(aux_z_seq[:,-1])[1]
 
                 action = action.view(-1).to("cpu").numpy()
 
             next_obs, rew, done = env.step(action)[:3]
-            terminate = done or (t == args.max_steps // args.n_repeat) or rew < 1e-6
 
             aux_obs_que.append(next_obs)
             action_que.append(action)
             rew_que.append(rew)
-            done_que.append(terminate)
+            done_que.append(done)
+            time_que.append(t+1)
 
             if t+1 >= args.seq_len:
                 aux_obs_t = np.array(aux_obs_que)
                 action_t = np.array(action_que)
                 rew_t = np.array(rew_que)
                 done_t = np.array(done_que)
+                time_t = np.array(time_que)
 
-                memory.push(aux_obs_t, action_t, rew_t, done_t)
+                memory.push(aux_obs_t, action_t, rew_t, done_t, time_t)
 
             n_steps += 1
 
@@ -193,12 +198,6 @@ def train_online_agent(act_dim, act_limit, agent, memory, args):
                         ),
                     )
 
-                if not args.is_e2e:
-                    for param in agent.slvm.gen_z1_t.parameters():
-                            param.requires_grad_(True)
-
-                    agent.s_optim = optim.Adam(agent.slvm.parameters(), lr=1e-4)
-
             if n_steps > args.n_explore:
                 m_batch = memory.sample(args.m_batch_size)
                 ac_batch = memory.sample(args.ac_batch_size)
@@ -226,7 +225,7 @@ def train_online_agent(act_dim, act_limit, agent, memory, args):
                     metric, f"metric/{args.env}_{args.alg}_{'orig' if args.is_e2e else 'plus'}_{args.seed}.pt"
                 )
 
-            if terminate:
+            if done or (t+1 == args.max_steps // args.n_repeat) or rew < 1e-6:
                 break
 
         if n_steps >= 1e6:

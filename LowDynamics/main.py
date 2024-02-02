@@ -34,11 +34,12 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument("--n_repeat", default=2, type=int, help="number of action repeats")
     parser.add_argument("--n_jump", default=4, type=int, help="time interval between the sequnces from offline demonstraions")
-    parser.add_argument("--seed", default=3061, type=int, help="random seed")
+    parser.add_argument("--seed", default=2035, type=int, help="random seed")
 
     parser.add_argument("--use_offline", action="store_true")
     parser.add_argument("--is_e2e", action="store_true")
     parser.add_argument("--from_scratch", action="store_true")
+    parser.add_argument("--resume", action="store_true")
     parser.add_argument("--alg", default="slac", type=str)
 
     parser.add_argument(

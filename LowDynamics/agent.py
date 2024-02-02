@@ -5,22 +5,24 @@ from collections import deque, namedtuple
 from algo import Dynamics, SLAC, SLVM
 
 
-Transition = namedtuple("Transition", ("aux_obs", "action", "rew", "done"))
+Transition = namedtuple("Transition", ("aux_obs", "action", "rew", "done", "time"))
 
 
 def convert(batch):
-    aux_obs_seq, action_seq, rew_seq, done_seq = (
+    aux_obs_seq, action_seq, rew_seq, done_seq, time_seq = (
         batch.aux_obs,
         batch.action,
         batch.rew,
         batch.done,
+        batch.time,
     )
     aux_obs_seq = torch.tensor(np.array(aux_obs_seq), dtype=torch.float32).div_(255.0).cuda()
     action_seq = torch.tensor(np.array(action_seq), dtype=torch.float32).cuda()
     rew_seq = torch.tensor(np.array(rew_seq), dtype=torch.float32).cuda()
     done_seq = torch.tensor(np.array(done_seq), dtype=torch.float32).cuda()
+    time_seq = torch.tensor(np.array(time_seq), dtype=torch.float32).cuda()
 
-    return aux_obs_seq, action_seq, rew_seq, done_seq
+    return aux_obs_seq, action_seq, rew_seq, done_seq, time_seq
 
 
 class Memory:
@@ -57,7 +59,7 @@ def load_dynamics(obs_dim, hid_dim, act_dim, args):
 
 def make_offline_agent(obs_dim, act_dim, act_limit, args):
     dynamics = None if args.is_e2e else load_dynamics(obs_dim, 128, act_dim, args)
-    slvm = SLVM(256, 256, obs_dim, 256, act_dim, dynamics=dynamics)
+    slvm = SLVM(256, 256, obs_dim, 256, act_dim, dynamics=dynamics, estimate_rew=False)
 
     agent = SLAC(
         slvm,
@@ -69,7 +71,7 @@ def make_offline_agent(obs_dim, act_dim, act_limit, args):
         min_log=-6,
         max_log=0,
         tunable=False,
-        alpha=0.0,
+        alpha=0.01,
         p_wd=1e-4,
     )
     agent = agent.cuda()
@@ -78,19 +80,31 @@ def make_offline_agent(obs_dim, act_dim, act_limit, args):
 
     for file in os.listdir("../64px"):
         data = np.load(f"../64px/{file}")
-        for t in range(0, 501-args.seq_len, args.n_jump):
+
+        T = len(data["is_last"]) - args.seq_len - 1
+        for t in range(0, T+1, args.n_jump):
             aux_obs = np.transpose(data['image'][t:t+args.seq_len+1], (0,3,1,2))
             action = data['action'][t+1:t+args.seq_len+1]
             rew = data['reward'][t+1:t+args.seq_len+1]
             done = data['is_last'][t+1:t+args.seq_len+1]
+            time = np.arange(t+1,t+args.seq_len+1)
 
-            memory.push(aux_obs, action, rew, done)
+            memory.push(aux_obs, action, rew, done, time)
+
+        if t != T:
+            aux_obs = np.transpose(data['image'][T:T+args.seq_len+1], (0,3,1,2))
+            action = data['action'][T+1:T+args.seq_len+1]
+            rew = data['reward'][T+1:T+args.seq_len+1]
+            done = data['is_last'][T+1:T+args.seq_len+1]
+            time = np.arange(T+1,T+args.seq_len+1)
+
+            memory.push(aux_obs, action, rew, done, time)
 
     return agent, memory
 
 def make_online_agent(obs_dim, act_dim, act_limit, args):
     dynamics = None if args.is_e2e else load_dynamics(obs_dim, 128, act_dim, args)
-    slvm = SLVM(256, 256, obs_dim, 256, act_dim, dynamics=dynamics)
+    slvm = SLVM(256, 256, obs_dim, 256, act_dim, dynamics=dynamics, estimate_rew=False)
 
     agent = SLAC(
         slvm,
